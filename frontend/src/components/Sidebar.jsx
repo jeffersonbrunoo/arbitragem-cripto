@@ -33,7 +33,7 @@ function Sidebar({
         value={intervalo}
         onChange={(e) => setIntervalo(Number(e.target.value))}
       >
-        <option value={3}>Atualizar a cada 3s</option>
+        <option value={1}>Atualizar a cada 1s</option>
         <option value={10}>Atualizar a cada 10s</option>
         <option value={30}>Atualizar a cada 30s</option>
         <option value={60}>Atualizar a cada 60s</option>
