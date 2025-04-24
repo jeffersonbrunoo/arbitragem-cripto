@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo
+    container_name: mongo
+    restart: always
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: ./backend
+    container_name: arbitragem-backend
+    ports:
+      - '5000:5000'
+    depends_on:
+      - mongodb
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/arbitragem
+      - JWT_SECRET=secreto123
+
+  frontend:
+    build: ./frontend
+    container_name: arbitragem-frontend
+    ports:
+      - '5173:5173'
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:

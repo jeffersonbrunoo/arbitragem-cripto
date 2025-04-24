@@ -1,0 +1,15 @@
+cat <<EOF > .gitignore
+# Node.js
+node_modules/
+.env
+.env.local
+.env.docker
+dist/
+build/
+.vscode/
+.DS_Store
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+EOF
