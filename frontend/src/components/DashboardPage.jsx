@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Sidebar from './Sidebar';
 import { Modal } from 'react-bootstrap';
@@ -11,27 +12,26 @@ function DashboardPage() {
   const [favoritos, setFavoritos] = useState(() => JSON.parse(localStorage.getItem('favoritos')) || []);
   const [lucroMinimo, setLucroMinimo] = useState('');
   const [symbolFiltro, setSymbolFiltro] = useState('');
-  const [intervalo, setIntervalo] = useState(30);
+  const [intervalo, setIntervalo] = useState(1); // Atualiza a cada 1 segundo
   const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
 
   const [parSelecionado, setParSelecionado] = useState(null);
   const [mostrarModal, setMostrarModal] = useState(false);
   const [historicoPorPar, setHistoricoPorPar] = useState({});
+  const navigate = useNavigate();
 
   const carregar = async () => {
     try {
       const res = await api.get('/monitor');
       const data = res.data;
-
       if (Array.isArray(data)) {
         setDados(data);
         registrarHistorico(data);
       } else {
-        console.warn('Resposta inválida da API /monitor:', data);
         setDados([]);
       }
     } catch (err) {
-      console.error('Erro ao buscar dados /monitor:', err);
+      console.error('Erro:', err);
       setDados([]);
     }
   };
@@ -54,13 +54,14 @@ function DashboardPage() {
       if (res.data.filtros) {
         setLucroMinimo(res.data.filtros.lucroMinimo || '');
         setSymbolFiltro(res.data.filtros.symbolFiltro || '');
-        setIntervalo(res.data.filtros.intervalo || 30);
+        setIntervalo(res.data.filtros.intervalo || 1);
       }
       setFavoritos(res.data.favoritos || []);
     });
   }, []);
 
   const registrarHistorico = (lista) => {
+    if (!Array.isArray(lista)) return;
     const now = Date.now();
     const atualizados = { ...historicoPorPar };
     lista.forEach((d) => {
@@ -78,11 +79,13 @@ function DashboardPage() {
     setHistoricoPorPar(atualizados);
   };
 
-  const filtrados = (Array.isArray(dados) ? dados : []).filter((d) => {
-    const lucroOk = lucroMinimo ? parseFloat(d.spreadIndex) >= parseFloat(lucroMinimo) : true;
-    const simboloOk = symbolFiltro ? d.symbol.includes(symbolFiltro.toUpperCase()) : true;
-    return lucroOk && simboloOk;
-  });
+  const filtrados = Array.isArray(dados)
+    ? dados.filter((d) => {
+        const lucroOk = lucroMinimo ? parseFloat(d.spreadIndex) >= parseFloat(lucroMinimo) : true;
+        const simboloOk = symbolFiltro ? d.symbol.includes(symbolFiltro.toUpperCase()) : true;
+        return lucroOk && simboloOk;
+      }).slice(0, 10)
+    : [];
 
   const badgeLucro = (valor) => {
     const v = parseFloat(valor);
@@ -105,15 +108,18 @@ function DashboardPage() {
     localStorage.setItem('darkMode', next);
   };
 
+  const logout = () => {
+    localStorage.removeItem('token');
+    navigate('/login');
+  };
+
   const classificarOportunidade = (symbol) => {
     const hist = historicoPorPar[symbol];
-    if (!hist || hist.length < 5) return 'normal';
-
+    if (!Array.isArray(hist) || hist.length < 5) return 'normal';
     const spreads = hist.map((h) => ((h.index - h.spot) / h.spot) * 100);
     const media = spreads.reduce((a, b) => a + b, 0) / spreads.length;
     const desvio = Math.sqrt(spreads.map((s) => (s - media) ** 2).reduce((a, b) => a + b, 0) / spreads.length);
     const ultimo = spreads.at(-1);
-
     if (Math.abs(ultimo - media) > 2 * desvio) return 'alta';
     if (desvio > 2.5) return 'possível armadilha';
     return 'normal';
@@ -131,11 +137,18 @@ function DashboardPage() {
         darkMode={darkMode}
         toggleDark={toggleDark}
       />
-      <div className={`flex-grow-1 p-3 ${darkMode ? 'bg-dark text-light' : ''}`}>
-        <h4 className="d-flex justify-content-between">
-          Oportunidades
-          <button className="btn btn-outline-secondary" onClick={() => carregar()}>🔄 Atualizar</button>
-        </h4>
+      <div className={`flex-grow-1 p-3 ${darkMode ? 'bg-dark text-white' : ''}`}>
+        <div className="d-flex justify-content-between align-items-center">
+          <h4>Oportunidades</h4>
+          <div className="d-flex gap-2">
+            <button className={`btn btn-outline-secondary ${darkMode ? 'text-white' : ''}`} onClick={carregar}>
+              🔄 Atualizar
+            </button>
+            <button className="btn btn-outline-danger" onClick={logout}>
+              🚪 Logout
+            </button>
+          </div>
+        </div>
 
         {filtrados.length === 0 && (
           <div className="alert alert-warning text-center">
@@ -143,7 +156,7 @@ function DashboardPage() {
           </div>
         )}
 
-        <table className="table table-bordered table-hover mt-3">
+        <table className={`table table-bordered table-hover mt-3 ${darkMode ? 'table-dark text-white' : ''}`}>
           <thead>
             <tr>
               <th>Moeda</th>
