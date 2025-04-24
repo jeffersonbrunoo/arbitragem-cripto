@@ -12,8 +12,9 @@ function DashboardPage() {
   const [favoritos, setFavoritos] = useState(() => JSON.parse(localStorage.getItem('favoritos')) || []);
   const [lucroMinimo, setLucroMinimo] = useState('');
   const [symbolFiltro, setSymbolFiltro] = useState('');
-  const [intervalo, setIntervalo] = useState(1); // Atualiza a cada 1 segundo
+  const [intervalo, setIntervalo] = useState(1);
   const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
+  const [verTodos, setVerTodos] = useState(false);
 
   const [parSelecionado, setParSelecionado] = useState(null);
   const [mostrarModal, setMostrarModal] = useState(false);
@@ -23,16 +24,25 @@ function DashboardPage() {
   const carregar = async () => {
     try {
       const res = await api.get('/monitor');
-      const data = res.data;
-      if (Array.isArray(data)) {
-        setDados(data);
-        registrarHistorico(data);
-      } else {
-        setDados([]);
-      }
+      const incoming = res.data;
+      if (!Array.isArray(incoming)) return;
+
+      setDados((atual) => {
+        const mapa = new Map(atual.map((d) => [d.symbol, d]));
+        incoming.forEach((novo) => {
+          if (mapa.has(novo.symbol)) {
+            const atual = mapa.get(novo.symbol);
+            mapa.set(novo.symbol, { ...atual, ...novo });
+          } else {
+            mapa.set(novo.symbol, novo);
+          }
+        });
+        return Array.from(mapa.values());
+      });
+
+      registrarHistorico(incoming);
     } catch (err) {
       console.error('Erro:', err);
-      setDados([]);
     }
   };
 
@@ -78,14 +88,6 @@ function DashboardPage() {
     });
     setHistoricoPorPar(atualizados);
   };
-
-  const filtrados = Array.isArray(dados)
-    ? dados.filter((d) => {
-        const lucroOk = lucroMinimo ? parseFloat(d.spreadIndex) >= parseFloat(lucroMinimo) : true;
-        const simboloOk = symbolFiltro ? d.symbol.includes(symbolFiltro.toUpperCase()) : true;
-        return lucroOk && simboloOk;
-      }).slice(0, 10)
-    : [];
 
   const badgeLucro = (valor) => {
     const v = parseFloat(valor);
@@ -150,13 +152,13 @@ function DashboardPage() {
           </div>
         </div>
 
-        {filtrados.length === 0 && (
-          <div className="alert alert-warning text-center">
-            Nenhuma oportunidade encontrada. Verifique os filtros ou tente novamente.
-          </div>
-        )}
+        <div className="mb-2 text-end">
+          <button className="btn btn-sm btn-outline-primary" onClick={() => setVerTodos(!verTodos)}>
+            {verTodos ? '🔽 Ver menos' : '🔼 Ver todos'}
+          </button>
+        </div>
 
-        <table className={`table table-bordered table-hover mt-3 ${darkMode ? 'table-dark text-white' : ''}`}>
+        <table className={`table table-bordered table-hover mt-2 ${darkMode ? 'table-dark text-white' : ''}`}>
           <thead>
             <tr>
               <th>Moeda</th>
@@ -167,16 +169,16 @@ function DashboardPage() {
             </tr>
           </thead>
           <tbody>
-            {filtrados.map((d) => (
+            {(verTodos ? dados : dados.slice(0, 10)).map((d) => (
               <tr key={d.symbol} onClick={() => { setParSelecionado(d); setMostrarModal(true); }} style={{ cursor: 'pointer' }}>
                 <td>
                   <span onClick={(e) => { e.stopPropagation(); toggleFavorito(d.symbol); }}>
                     {favoritos.includes(d.symbol) ? '⭐' : '☆'} {d.symbol}
                   </span>
                 </td>
-                <td>{d.spotAverage.toFixed(4)}</td>
-                <td>{d.indexPrice}</td>
-                <td>{d.fairPrice}</td>
+                <td>{d.spotAverage?.toFixed(4) ?? '-'}</td>
+                <td>{d.indexPrice ?? '-'}</td>
+                <td>{d.fairPrice ?? '-'}</td>
                 <td>
                   <span className={badgeLucro(d.spreadIndex)}>{d.spreadIndex}%</span><br />
                   <small>{classificarOportunidade(d.symbol)}</small>
