@@ -6,6 +6,9 @@ import mongoose from 'mongoose';
 import monitorRoutes from './routes/monitor.js';
 import authRoutes from './routes/auth.js';
 import settingsRoutes from './routes/settings.js';
+import forgotRoutes from './routes/forgot.js';
+import resetRoutes from './routes/reset.js';
+
 
 dotenv.config();
 
@@ -16,6 +19,9 @@ app.use(express.json());
 app.use('/api/monitor', monitorRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/auth', forgotRoutes);
+app.use('/api/auth', resetRoutes);
+
 
 const PORT = process.env.PORT || 5000;
 

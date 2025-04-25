@@ -1,37 +1,55 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 
 function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [erro, setErro] = useState(null);
+  const [mensagem, setMensagem] = useState(null);
+
   const navigate = useNavigate();
 
-  const handleRegister = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setErro(null);
+    setMensagem(null);
+
+    if (!email.includes('@')) {
+      setErro('E-mail inválido');
+      return;
+    }
+    if (password.length < 8) {
+      setErro('Senha muito curta (mínimo 8 caracteres)');
+      return;
+    }
     if (password !== confirm) {
-      alert('As senhas não coincidem');
+      setErro('Senhas não coincidem');
       return;
     }
 
     try {
       await api.post('/auth/register', { email, password });
-      alert('Cadastro realizado com sucesso');
-      navigate('/login');
+      setMensagem('Cadastro realizado com sucesso! Redirecionando...');
+      setTimeout(() => navigate('/login'), 3000);
     } catch (err) {
-      alert('Erro ao cadastrar');
+      setErro(err.response?.data?.message || 'Erro ao registrar usuário.');
     }
   };
 
   return (
     <div className="container mt-5" style={{ maxWidth: 400 }}>
-      <h2 className="mb-4 text-center">Cadastrar</h2>
-      <form onSubmit={handleRegister}>
+      <h3 className="mb-4 text-center">Criar Conta</h3>
+
+      {mensagem && <div className="alert alert-success text-center">{mensagem}</div>}
+      {erro && <div className="alert alert-danger text-center">{erro}</div>}
+
+      <form onSubmit={handleSubmit}>
         <input
           type="email"
           className="form-control mb-3"
-          placeholder="Email"
+          placeholder="Digite seu e-mail"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
@@ -39,7 +57,7 @@ function RegisterPage() {
         <input
           type="password"
           className="form-control mb-3"
-          placeholder="Senha"
+          placeholder="Digite sua senha (mín. 8 caracteres)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
@@ -47,15 +65,17 @@ function RegisterPage() {
         <input
           type="password"
           className="form-control mb-3"
-          placeholder="Confirmar Senha"
+          placeholder="Confirmar senha"
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           required
         />
-        <button type="submit" className="btn btn-success w-100 mb-3">Registrar</button>
+
+        <button type="submit" className="btn btn-primary w-100">Cadastrar</button>
       </form>
-      <div className="text-center">
-        <Link to="/login">Já tem conta? Entrar</Link>
+
+      <div className="text-center mt-3">
+        <Link to="/login">Já tem uma conta? Faça login</Link>
       </div>
     </div>
   );

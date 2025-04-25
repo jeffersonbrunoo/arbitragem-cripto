@@ -5,34 +5,43 @@ import User from '../models/User.js';
 
 const router = express.Router();
 
-// Cadastro de novo usuário
+// Cadastro de usuário
 router.post('/register', async (req, res) => {
-  try {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(409).json({ message: 'Usuário já existe' });
+  try {
+    // Validar dados básicos
+    if (!email || !password) {
+      return res.status(400).json({ message: 'E-mail e senha são obrigatórios.' });
+    }
+    if (!email.includes('@')) {
+      return res.status(400).json({ message: 'E-mail inválido.' });
+    }
+    if (password.length < 8) {
+      return res.status(400).json({ message: 'Senha muito curta. Mínimo 8 caracteres.' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Verificar se usuário já existe
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'E-mail já cadastrado.' });
+    }
 
-    const newUser = new User({
+    // Criar novo usuário
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = new User({
       email,
       password: hashedPassword,
+      filtros: {},
+      favoritos: []
     });
-    await newUser.save();
 
-    const token = jwt.sign(
-      { userId: newUser._id },
-      process.env.JWT_SECRET,
-      { expiresIn: '1d' }
-    );
+    await user.save();
 
-    res.status(201).json({ token });
+    res.status(201).json({ message: 'Usuário cadastrado com sucesso!' });
   } catch (err) {
-    console.error('Erro no registro:', err);
-    res.status(500).json({ message: 'Erro interno no servidor' });
+    console.error('[REGISTER] Erro interno:', err);
+    res.status(500).json({ message: 'Erro interno ao cadastrar usuário.' });
   }
 });
 
