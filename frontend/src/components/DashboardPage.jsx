@@ -46,10 +46,19 @@ function DashboardPage() {
     }
   };
 
+  // ✅ NOVA LÓGICA DE ATUALIZAÇÃO
   useEffect(() => {
-    carregar();
-    const interval = setInterval(carregar, intervalo * 1000);
-    return () => clearInterval(interval);
+    let cancelado = false;
+
+    const loop = async () => {
+      while (!cancelado) {
+        await carregar();
+        await new Promise((res) => setTimeout(res, intervalo * 1000));
+      }
+    };
+
+    loop();
+    return () => { cancelado = true; };
   }, [intervalo]);
 
   useEffect(() => {
