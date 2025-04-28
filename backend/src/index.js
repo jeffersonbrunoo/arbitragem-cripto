@@ -8,6 +8,8 @@ import authRoutes from './routes/auth.js';
 import settingsRoutes from './routes/settings.js';
 import forgotRoutes from './routes/forgot.js';
 import resetRoutes from './routes/reset.js';
+import meRoutes from './routes/me.js';
+
 
 
 dotenv.config();
@@ -21,6 +23,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/auth', forgotRoutes);
 app.use('/api/auth', resetRoutes);
+app.use('/api/me', meRoutes);
 
 
 const PORT = process.env.PORT || 5000;

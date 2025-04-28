@@ -40,7 +40,7 @@ Sistema fullstack para monitoramento de oportunidades de arbitragem entre preço
 ### 1. Clonar o projeto
 
 ```bash
-git clone https://github.com/SEUUSUARIO/arbitragem-cripto.git
+git clone https://github.com/jimmyarbats/arbitragem-cripto.git
 cd arbitragem-cripto
 ```
 

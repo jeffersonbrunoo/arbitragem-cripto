@@ -1,55 +1,40 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { jwtDecode } from 'jwt-decode';
+import { useNavigate, Link } from 'react-router-dom';
+import api from '../services/api';
 
 function MePage() {
-  const [token, setToken] = useState('');
-  const [decoded, setDecoded] = useState(null);
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    const saved = localStorage.getItem('token');
-    setToken(saved);
-    if (saved) {
+    const fetchMe = async () => {
       try {
-        const parsed = jwtDecode(saved);
-        setDecoded(parsed);
-      } catch {
-        setDecoded(null);
+        const { data } = await api.get('/me');
+        setEmail(data.email);
+      } catch (err) {
+        console.error('Erro ao buscar dados do usuário:', err);
+        localStorage.removeItem('token');
+        navigate('/login');
+      } finally {
+        setLoading(false);
       }
-    }
-  }, []);
+    };
+
+    fetchMe();
+  }, [navigate]);
+
+  if (loading) return <div className="text-center mt-5">Carregando...</div>;
 
   return (
-    <div className="container mt-5">
-      <h3 className="mb-4">Token do Usuário</h3>
+    <div className="container mt-5" style={{ maxWidth: 500 }}>
+      <h3 className="mb-4 text-center">Meu Perfil</h3>
 
-      {!token && (
-        <div className="alert alert-warning">
-          Nenhum token encontrado no localStorage.
-        </div>
-      )}
+      <div className="card p-4">
+        <p><strong>Email:</strong> {email}</p>
 
-      {token && (
-        <>
-          <p><strong>Token JWT:</strong></p>
-          <pre className="bg-light p-3 rounded" style={{ overflowX: 'auto' }}>
-            {token}
-          </pre>
-
-          {decoded && (
-            <>
-              <h5 className="mt-4">Payload decodificado:</h5>
-              <pre className="bg-secondary text-white p-3 rounded">
-                {JSON.stringify(decoded, null, 2)}
-              </pre>
-            </>
-          )}
-        </>
-      )}
-
-      <div className="mt-4">
-        <Link to="/dashboard" className="btn btn-outline-primary">
-          Voltar ao Dashboard
+        <Link to="/change-password" className="btn btn-primary mt-4">
+          🔒 Trocar minha senha
         </Link>
       </div>
     </div>

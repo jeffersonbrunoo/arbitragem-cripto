@@ -1,27 +1,50 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LoginPage from './components/LoginPage';
-import DashboardPage from './components/DashboardPage';
-import ProtectedRoute from './components/ProtectedRoute';
 import RegisterPage from './components/RegisterPage';
 import ForgotPage from './components/ForgotPage';
 import ResetPasswordPage from './components/ResetPasswordPage';
+import DashboardPage from './components/DashboardPage';
 import MePage from './components/MePage';
-
-
+import ChangePasswordPage from './components/ChangePasswordPage';
+import PrivateRoute from './components/PrivateRoute'; // <-- novo import
 
 function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
+        <Route path="/" element={<LoginPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot" element={<ForgotPage />} />
         <Route path="/reset" element={<ResetPasswordPage />} />
-        <Route path="/me" element={<MePage />} />
-        <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
-        <Route path="*" element={<LoginPage />} />
+
+        {/* Rotas protegidas */}
+        <Route
+          path="/dashboard"
+          element={
+            <PrivateRoute>
+              <DashboardPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/me"
+          element={
+            <PrivateRoute>
+              <MePage />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/change-password"
+          element={
+            <PrivateRoute>
+              <ChangePasswordPage />
+            </PrivateRoute>
+          }
+        />
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
 }
 
