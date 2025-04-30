@@ -1,3 +1,7 @@
+import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { motion } from 'framer-motion'; // Adiciona framer-motion
+
 function Sidebar({
   lucroMinimo,
   setLucroMinimo,
@@ -8,6 +12,17 @@ function Sidebar({
   darkMode,
   toggleDark
 }) {
+  const navigate = useNavigate();
+  const [logoutMsg, setLogoutMsg] = useState('');
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setLogoutMsg('Logout realizado com sucesso!');
+    setTimeout(() => {
+      navigate('/login');
+    }, 1500);
+  };
+
   return (
     <div className={`p-3 ${darkMode ? 'bg-dark text-light' : 'bg-light'}`} style={{ minWidth: 260, height: '100vh' }}>
       <h5>🔍 Filtros</h5>
@@ -39,9 +54,41 @@ function Sidebar({
         <option value={60}>Atualizar a cada 60s</option>
       </select>
 
-      <button className={`btn w-100 ${darkMode ? 'btn-light' : 'btn-dark'}`} onClick={toggleDark}>
-        {darkMode ? '☀️ Modo Claro' : '🌙 Modo Escuro'}
+      <div className="d-flex align-items-center justify-content-between mb-3">
+        <span>{darkMode ? '☀️ Claro' : '🌙 Escuro'}</span>
+        <motion.div
+          className={`rounded-pill ${darkMode ? 'bg-light' : 'bg-dark'}`}
+          style={{ width: 60, height: 30, position: 'relative', cursor: 'pointer', padding: 5 }}
+          onClick={toggleDark}
+          layout
+          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+        >
+          <motion.div
+            className="bg-primary rounded-circle"
+            style={{
+              width: 20,
+              height: 20,
+              position: 'absolute',
+              top: 5,
+              left: darkMode ? 30 : 5
+            }}
+            layout
+            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+          />
+        </motion.div>
+      </div>
+
+      <hr />
+
+      <button onClick={handleLogout} className="btn btn-danger w-100">
+        🔒 Logout
       </button>
+
+      {logoutMsg && (
+        <div className="alert alert-success text-center p-2 mt-3" role="alert">
+          {logoutMsg}
+        </div>
+      )}
     </div>
   );
 }
