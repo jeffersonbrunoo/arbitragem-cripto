@@ -123,5 +123,4 @@ http://localhost:5000
 
 Fique à vontade para abrir issues ou pull requests. Melhorias são sempre bem-vindas!
 
-**Desenvolvido com ❤️ por [JimmyArbats](https://github.com/jimmyarbats) e equipe.**
 
