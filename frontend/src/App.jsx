@@ -1,6 +1,11 @@
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { useEffect } from 'react';
 import socket from './services/socket';
+
+// CSS global e Bootstrap (para classes existentes)
+import { ThemeProvider } from './contexts/ThemeContext';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import './styles/global.css';
 
 import LoginPage from './components/LoginPage';
 import RegisterPage from './components/RegisterPage';
@@ -12,12 +17,14 @@ import ChangePasswordPage from './components/ChangePasswordPage';
 import PrivateRoute from './components/PrivateRoute';
 
 function App() {
+  // Conecta o socket uma vez ao carregar a App
   useEffect(() => {
     socket.connect();
     console.log('✅ Socket conectado ao backend');
   }, []);
 
   return (
+    <ThemeProvider>
     <Router>
       <Routes>
         <Route path="/" element={<LoginPage />} />
@@ -25,6 +32,7 @@ function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot" element={<ForgotPage />} />
         <Route path="/reset" element={<ResetPasswordPage />} />
+
         <Route
           path="/dashboard"
           element={
@@ -33,6 +41,7 @@ function App() {
             </PrivateRoute>
           }
         />
+
         <Route
           path="/me"
           element={
@@ -41,6 +50,7 @@ function App() {
             </PrivateRoute>
           }
         />
+
         <Route
           path="/change-password"
           element={
@@ -51,6 +61,7 @@ function App() {
         />
       </Routes>
     </Router>
+    </ThemeProvider>
   );
 }
 

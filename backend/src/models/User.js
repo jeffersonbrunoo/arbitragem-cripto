@@ -11,9 +11,8 @@ const UserSchema = new mongoose.Schema({
     required: true
   },
   filtros: {
-    lucroMinimo: String,
-    symbolFiltro: String,
-    intervalo: Number
+    lucroMinimo: { type: Number, default: 0 },
+    symbolFiltro: { type: String, default: '' },
   },
   favoritos: [String],
 
@@ -24,6 +23,6 @@ const UserSchema = new mongoose.Schema({
   resetTokenExpire: {
     type: Date
   }
-});
+}, { timestamps: true });
 
 export default mongoose.model('User', UserSchema);

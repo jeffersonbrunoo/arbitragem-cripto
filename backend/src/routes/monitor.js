@@ -2,129 +2,210 @@ import express from 'express';
 import authMiddleware from '../middlewares/authMiddleware.js';
 import WebSocket from 'ws';
 import axios from 'axios';
+import Debug from 'debug';
+
+const logInfo  = Debug('monitor:info');
+const logWarn  = Debug('monitor:warn');
+const logError = Debug('monitor:error');
 
 const router = express.Router();
-const FUTURE_WS_URL = 'wss://contract.mexc.com/edge';
-const REST_SPOT_DEPTH_URL = 'https://api.mexc.com/api/v3/depth';
-const REST_SPOT_24H_URL = 'https://api.mexc.com/api/v3/ticker/24hr';
 
-const trackedPairs = [
-  'BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'DOGEUSDT',
-  'SOLUSDT', 'LTCUSDT', 'TRXUSDT', 'MATICUSDT'
-];
+const FUTURE_WS_URL       = 'wss://contract.mexc.com/edge';
+const SPOT_WS_URL         = 'wss://wbs-api.mexc.com/ws';
+const REST_SYMBOLS_URL    = 'https://api.mexc.com/api/v3/ticker/price';
+const REST_BOOKTICKER_URL = 'https://api.mexc.com/api/v3/ticker/bookTicker';
 
-const spotData = {};     // { symbol: price }
-const futureData = {};   // { symbol: price }
-const volume24h = {};    // { symbol: volume }
-const encontros = {};    // { symbol: count }
-let retryAttempt = 0;
+const THRESHOLD = 0.0001;
 
-// Fallback REST para SPOT (menor ask price)
-async function fetchSpotPrices() {
-  for (const symbol of trackedPairs) {
-    try {
-      const { data } = await axios.get(`${REST_SPOT_DEPTH_URL}?symbol=${symbol}&limit=5`);
-      const ask = data.asks?.[0]?.[0];
-      if (ask) {
-        spotData[symbol] = parseFloat(ask);
-        console.log(`✅ [SPOT REST] ${symbol} = ${spotData[symbol]}`);
-      }
-    } catch (err) {
-      console.error(`❌ Erro SPOT REST ${symbol}:`, err.message);
-    }
+let trackedPairs = [];
+const spotData           = {};
+const futureData         = {};
+const spotReverseData    = {};
+const futureReverseData  = {};
+const encontros           = {};
+const lastConverged      = {};
+let retryFuture = 0;
+let retrySpot = 0;
+const BLACKLIST = ['MAGAUSDT', 'ALTUSDT', 'QIUSDT'];
+
+async function loadTrackedPairs() {
+  try {
+    const { data } = await axios.get(REST_SYMBOLS_URL);
+    trackedPairs = data
+      .map(item => item.symbol)
+      .filter(sym => sym.endsWith('USDT') && !BLACKLIST.includes(sym));
+    logInfo(`🔃 Carregado ${trackedPairs.length} pares USDT da MEXC (após filtro)`);
+  } catch (err) {
+    logError('❌ Falha ao carregar pares via ticker/price:', err.message);
   }
 }
 
-function startFutureWebSocket() {
+async function fetchSpotPrices() {
+  try {
+    const start = Date.now();
+    const { data } = await axios.get(REST_BOOKTICKER_URL);
+    if (!Array.isArray(data)) return;
+    data.forEach(item => {
+      if (item.symbol.endsWith('USDT')) {
+        spotData[item.symbol] = item.askPrice;
+        spotReverseData[item.symbol] = item.bidPrice;
+      }
+    });
+    const duration = Date.now() - start;
+    if (duration > 200) {
+      logWarn(`⏱️ SPOT REST lento: ${duration}ms para ${Object.keys(spotData).length} símbolos`);
+    }
+  } catch (err) {
+    logError('❌ Erro SPOT REST bookTicker:', err.message);
+  }
+}
+
+function chunkArray(arr, size) {
+  const chunks = [];
+  for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
+  return chunks;
+}
+
+function startFutureWS() {
   const ws = new WebSocket(FUTURE_WS_URL);
 
   ws.on('open', () => {
-    console.log('🟢 Future WebSocket conectado');
-    retryAttempt = 0;
-
-    const subs = trackedPairs.map(symbol => ({
-      method: 'sub.deal',
-      param: { symbol: symbol.replace('USDT', '_USDT') },
-      id: Date.now()
-    }));
-    subs.forEach(sub => ws.send(JSON.stringify(sub)));
+    logInfo('🟢 Future WS conectado');
+    retryFuture = 0;
+    trackedPairs.forEach(symbol => {
+      const symbolF = symbol.replace('USDT', '_USDT');
+      ws.send(JSON.stringify({
+        method: 'sub.depth.full',
+        param: { symbol: symbolF, limit: 20, interval: '0' },
+        id: Date.now(),
+      }));
+    });
   });
 
-  ws.on('message', (msg) => {
+  ws.on('message', msg => {
     try {
-      const data = JSON.parse(msg);
-      if (!data?.symbol || !data?.data?.p) return;
-
-      const symbol = data.symbol.replace('_USDT', 'USDT');
-      futureData[symbol] = parseFloat(data.data.p);
-      console.log(`✅ Future atualizado: ${symbol} = ${futureData[symbol]}`);
+      const d = JSON.parse(msg);
+      const sym = d.symbol?.replace('_USDT', 'USDT');
+      const bids = d.data?.bids;
+      const asks = d.data?.asks;
+      if (sym && Array.isArray(bids) && bids.length) {
+        const bestBid = bids.reduce((max, curr) => Math.max(max, Number(curr[0])), 0);
+        futureData[sym] = bestBid.toFixed(10);
+      }
+      if (sym && Array.isArray(asks) && asks.length) {
+        const bestAsk = asks.reduce((min, curr) => Math.min(min, Number(curr[0])), Infinity);
+        futureReverseData[sym] = bestAsk.toFixed(10);
+      }
     } catch (err) {
-      console.error('❌ Erro no Future WS:', err.message);
+      logError('❌ Erro Future WS:', err.message);
     }
   });
 
   ws.on('close', () => {
-    retryAttempt++;
-    const delay = Math.min(30000, 1000 * 2 ** retryAttempt);
-    console.warn(`🔄 Future WS desconectado. Reconectando em ${delay / 1000}s...`);
-    setTimeout(startFutureWebSocket, delay);
+    retryFuture++;
+    const delay = Math.min(30000, 1000 * 2 ** retryFuture);
+    logWarn(`🔄 Future WS reconecta em ${delay/1000}s`);
+    setTimeout(startFutureWS, delay);
   });
 }
 
-async function updateVolume24h() {
-  try {
-    const { data } = await axios.get(REST_SPOT_24H_URL);
-    data.forEach(item => {
-      if (trackedPairs.includes(item.symbol)) {
-        volume24h[item.symbol] = parseFloat(item.quoteVolume || 0);
-      }
+function startSpotWS(batch) {
+  const ws = new WebSocket(SPOT_WS_URL);
+
+  ws.on('open', () => {
+    logInfo(`🟢 Spot WS conectado (batch de ${batch.length})`);
+    retrySpot = 0;
+    batch.forEach(sym => {
+      ws.send(JSON.stringify({
+        method: 'SUBSCRIPTION',
+        params: [`spot@public.bookTicker.v3.api@${sym}`],
+        id: Date.now(),
+      }));
     });
-  } catch (err) {
-    console.error('❌ Erro ao buscar volume 24h:', err.message);
-  }
+    const ping = setInterval(() => ws.send(JSON.stringify({ method: 'PING', id: Date.now() })), 30000);
+    ws.once('close', () => clearInterval(ping));
+  });
+
+  ws.on('message', msg => {
+    try {
+      const d = JSON.parse(msg);
+      if (d.symbol && d.data?.askPrice && d.data?.bidPrice) {
+        spotData[d.symbol] = d.data.askPrice;
+        spotReverseData[d.symbol] = d.data.bidPrice;
+      }
+    } catch {}
+  });
+
+  ws.on('error', err => {
+    logError('❌ Spot WS erro:', err.message);
+    ws.close();
+  });
+
+  ws.on('close', () => {
+    retrySpot++;
+    const delay = Math.min(30000, 1000 * 2 ** retrySpot);
+    logWarn(`🔄 Spot WS reconecta em ${delay/1000}s`);
+    setTimeout(() => startSpotWS(batch), delay);
+  });
 }
 
 export function setupSocketMonitor(io) {
-  startFutureWebSocket();
-  setInterval(fetchSpotPrices, 5000);
-  updateVolume24h();
-  setInterval(updateVolume24h, 30000);
+  loadTrackedPairs()
+    .then(async () => {
+      await fetchSpotPrices();
+      startFutureWS();
+      const batches = chunkArray(trackedPairs, 30);
+      batches.forEach(startSpotWS);
+      logInfo(`🟢 Spot WS: ${batches.length} conexões iniciadas`);
 
-  console.log('🟢 Monitor socket ativo');
+      setInterval(fetchSpotPrices, 10000);
 
-  setInterval(() => {
-    trackedPairs.forEach(symbol => {
-      const spot = spotData[symbol];
-      const future = futureData[symbol];
+      setInterval(() => {
+        trackedPairs.forEach(sym => {
+          const s = Number(spotData[sym] ?? NaN);
+          const f = Number(futureData[sym] ?? NaN);
+          const sb = Number(spotReverseData[sym] ?? NaN);
+          const fa = Number(futureReverseData[sym] ?? NaN);
 
-      if (typeof spot === 'undefined' || typeof future === 'undefined') {
-        console.log(`⏳ Aguardando dados para ${symbol}...`);
-        return;
-      }
+          if (isNaN(s) || isNaN(f)) return;
+          const lucro = (((f - s) / s) * 100).toFixed(2);
 
-      const lucro = (((future - spot) / spot) * 100).toFixed(2);
-      encontros[symbol] = encontros[symbol] ?? 0;
-      if (Math.abs(future - spot) < 0.0001) encontros[symbol]++;
+          const lucroReverso = (!isNaN(sb) && !isNaN(fa))
+            ? (((sb - fa) / fa) * 100).toFixed(2)
+            : null;
 
-      const payload = {
-        symbol,
-        data: {
-          spotPrice: spot,
-          futurePrice: future,
-          volume24h: volume24h[symbol] || 0,
-          lucro,
-          encontros: encontros[symbol]
-        }
-      };
+          const converged = Math.abs(f - s) < THRESHOLD;
+          encontros[sym] = encontros[sym] ?? 0;
+          lastConverged[sym] = lastConverged[sym] ?? false;
+          if (converged && !lastConverged[sym]) encontros[sym]++;
+          lastConverged[sym] = converged;
 
-      console.log(`📊 Emitindo ${symbol} | Spot: ${spot} | Future: ${future} | Lucro: ${lucro}%`);
-      io.emit('spotData', payload);
-    });
-  }, 1000);
+          io.emit('spotData', {
+            symbol: sym,
+            data: {
+              spotPrice: s.toString(),
+              futurePrice: f.toString(),
+              lucro,
+              encontros: encontros[sym],
+              spotBid: !isNaN(sb) ? sb.toString() : null,
+              futureAsk: !isNaN(fa) ? fa.toString() : null,
+              lucroReverso
+            }
+          });
+        });
+      }, 1000);
+
+      const ONE_HOUR = 60 * 60 * 1000;
+      setInterval(() => {
+        logInfo('🔄 Resetando encontros (última hora)');
+        Object.keys(encontros).forEach(sym => { encontros[sym] = 0; lastConverged[sym] = false; });
+      }, ONE_HOUR);
+
+      logInfo('🟢 Monitor socket ativo');
+    })
+    .catch(err => logError('❌ Não foi possível iniciar monitor:', err));
 }
 
-router.get('/', authMiddleware, async (req, res) => {
-  res.status(200).json([]);
-});
+router.get('/', authMiddleware, (_req, res) => res.status(200).json([]));
 
 export default router;
