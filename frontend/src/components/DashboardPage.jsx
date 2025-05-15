@@ -115,14 +115,6 @@ export default function DashboardPage() {
       <div className={`flex-grow-1 p-3 ${darkMode ? 'bg-dark text-white' : ''}`}>
         <div className="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center mb-2 gap-2">
           <h4>MONITOR DE PREÇOS</h4>
-          <div className="d-flex flex-wrap gap-2">
-            <button className={`btn btn-outline-secondary ${darkMode ? 'text-white' : ''}`} onClick={() => window.location.reload()}>
-              🔄 Atualizar
-            </button>
-            <button className="btn btn-outline-danger" onClick={logout}>
-              🚪 Logout
-            </button>
-          </div>
         </div>
 
         <div className="btn-group mb-2">
@@ -137,7 +129,7 @@ export default function DashboardPage() {
         <div className="table-responsive">
           <table className={`table table-bordered table-hover mt-2 ${darkMode ? 'table-dark text-white' : ''}`}>  
             <thead>
-              <tr>
+              <tr className="text-center">
                 <th>★</th>
                 <th>Moeda</th>
                 <th>Spot</th>
@@ -149,11 +141,11 @@ export default function DashboardPage() {
             </thead>
             <tbody>
               {(verTodos ? dadosFiltrados : dadosFiltrados.slice(0, 50)).map(d => (
-                <tr key={d.symbol} style={{ cursor: 'pointer', color: darkMode ? 'white' : 'black' }}>
+                <tr key={d.symbol} className="text-center" style={{ cursor: 'pointer', color: darkMode ? 'white' : 'black' }}>
                   <td onClick={e => { e.stopPropagation(); toggleFavorito(d.symbol); }} style={{ cursor: 'pointer' }}>
                     {favoritos.includes(d.symbol) ? '★' : '☆'}
                   </td>
-                  <td>{d.symbol}</td>
+                  <td>{d.symbol.replace('USDT', '')}</td>
                   <td>{abaAtiva === 'entrada' ? (d.spotPrice ?? '-') : (d.spotBid ?? '-')}</td>
                   <td>{abaAtiva === 'entrada' ? (d.futurePrice ?? '-') : (d.futureAsk ?? '-')}</td>
                   <td>

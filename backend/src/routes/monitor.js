@@ -1,3 +1,5 @@
+// backend\src\routes\monitor.js
+
 import express from 'express';
 import authMiddleware from '../middlewares/authMiddleware.js';
 import WebSocket from 'ws';
@@ -26,7 +28,7 @@ const encontros           = {};
 const lastConverged      = {};
 let retryFuture = 0;
 let retrySpot = 0;
-const BLACKLIST = ['MAGAUSDT', 'ALTUSDT', 'QIUSDT'];
+const BLACKLIST = ['MAGAUSDT', 'ALTUSDT', 'QIUSDT', 'JAGERUSDT', 'CATTONUSDT'];
 
 async function loadTrackedPairs() {
   try {

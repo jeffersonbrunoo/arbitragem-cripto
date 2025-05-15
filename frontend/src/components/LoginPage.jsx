@@ -1,15 +1,13 @@
 // src/components/LoginPage.jsx
-import React, { useState, useContext } from 'react';
-import { ThemeContext } from '../contexts/ThemeContext';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
-import { Eye, EyeSlash } from 'react-bootstrap-icons';  // <— ícones
+import { Eye, EyeSlash } from 'react-bootstrap-icons';
 
 function LoginPage() {
-  const { darkMode, toggleDark } = useContext(ThemeContext);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPwd, setShowPwd] = useState(false);       // <— estado para visibilidade
+  const [showPwd, setShowPwd] = useState(false);
   const navigate = useNavigate();
 
   const login = async e => {
@@ -28,13 +26,10 @@ function LoginPage() {
   };
 
   return (
-    <div className={`login-page ${darkMode ? 'dark-mode' : ''}`}>
-      <div className={`login-container ${darkMode ? 'dark-mode' : ''}`}>
+    <div className="login-page">
+      <div className="login-container">
         <header className="login-header-bar">
           <h2 className="login-header">Login</h2>
-          <button type="button" className="toggle-theme-btn" onClick={toggleDark}>
-            {darkMode ? '☀️ Claro' : '🌙 Escuro'}
-          </button>
         </header>
 
         <form onSubmit={login} className="login-form">
@@ -47,7 +42,6 @@ function LoginPage() {
             required
           />
 
-          {/* wrapper para mostrar/esconder senha */}
           <div className="password-wrapper">
             <input
               type={showPwd ? 'text' : 'password'}

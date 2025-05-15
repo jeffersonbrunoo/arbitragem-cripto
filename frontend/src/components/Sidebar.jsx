@@ -28,11 +28,6 @@ function Sidebar({
   }, []);
 
   useEffect(() => {
-    const storedTheme = localStorage.getItem('darkMode');
-    if (storedTheme === 'true') toggleDark(true);
-  }, []);
-
-  useEffect(() => {
     localStorage.setItem('darkMode', darkMode);
   }, [darkMode]);
 
