@@ -17,7 +17,6 @@ export default function DashboardPage() {
   const [verTodos, setVerTodos] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [wsStatus, setWsStatus] = useState('desconectado');
-  const [abaAtiva, setAbaAtiva] = useState('entrada');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -39,7 +38,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     socket.connect();
-    socket.on('connect',  () => setWsStatus('online'));
+    socket.on('connect', () => setWsStatus('online'));
     socket.on('disconnect', () => setWsStatus('offline'));
     socket.on('error', () => setWsStatus('erro'));
     return () => {
@@ -78,10 +77,12 @@ export default function DashboardPage() {
   };
 
   const handleCoinAction = symbol => {
-    const formatted = symbol.replace('USDT', '_USDT');
-    window.open(`https://www.mexc.com/exchange/${formatted}`, '_blank');
-    window.open(`https://futures.mexc.com/exchange/${formatted}`, '_blank');
-  };
+  const formatted = symbol.replace('USDT', '_USDT');
+
+  // Reutiliza as abas nomeadas
+  window.open(`https://www.mexc.com/exchange/${formatted}`, 'mexcSpot');
+  window.open(`https://futures.mexc.com/exchange/${formatted}`, 'mexcFutures');
+};
 
   const dadosFiltrados = useMemo(() => {
     return dados
@@ -117,24 +118,16 @@ export default function DashboardPage() {
           <h4>MONITOR DE PREÇOS</h4>
         </div>
 
-        <div className="btn-group mb-2">
-          <button className={`btn ${abaAtiva === 'entrada' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setAbaAtiva('entrada')}>
-            🟢 Entrada
-          </button>
-          <button className={`btn ${abaAtiva === 'saida' ? 'btn-primary' : 'btn-outline-primary'}`} onClick={() => setAbaAtiva('saida')}>
-            🔴 Saída
-          </button>
-        </div>
-
         <div className="table-responsive">
-          <table className={`table table-bordered table-hover mt-2 ${darkMode ? 'table-dark text-white' : ''}`}>  
+          <table className={`table table-bordered table-hover mt-2 ${darkMode ? 'table-dark text-white' : ''}`}>
             <thead>
               <tr className="text-center">
                 <th>★</th>
                 <th>Moeda</th>
                 <th>Spot</th>
                 <th>Future</th>
-                <th>{abaAtiva === 'entrada' ? 'Lucro (%)' : 'Saída (%)'}</th>
+                <th>Lucro Entrada</th>
+                <th>Lucro Saída</th>
                 <th>Encontros</th>
                 <th>Ações</th>
               </tr>
@@ -146,12 +139,13 @@ export default function DashboardPage() {
                     {favoritos.includes(d.symbol) ? '★' : '☆'}
                   </td>
                   <td>{d.symbol.replace('USDT', '')}</td>
-                  <td>{abaAtiva === 'entrada' ? (d.spotPrice ?? '-') : (d.spotBid ?? '-')}</td>
-                  <td>{abaAtiva === 'entrada' ? (d.futurePrice ?? '-') : (d.futureAsk ?? '-')}</td>
+                  <td>{d.spotPrice ?? '-'}</td>
+                  <td>{d.futurePrice ?? '-'}</td>
                   <td>
-                    <span className={badgeLucro(abaAtiva === 'entrada' ? d.lucro : d.lucroReverso)}>
-                      {abaAtiva === 'entrada' ? d.lucro : d.lucroReverso}%
-                    </span>
+                    <span className={badgeLucro(d.lucro)}>{d.lucro}%</span>
+                  </td>
+                  <td>
+                    <span className={badgeLucro(d.lucroReverso)}>{d.lucroReverso ?? '-'}%</span>
                   </td>
                   <td>{d.encontros}</td>
                   <td className="text-center align-middle" onClick={e => e.stopPropagation()}>

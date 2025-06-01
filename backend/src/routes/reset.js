@@ -4,13 +4,14 @@ import User from '../models/User.js';
 
 const router = express.Router();
 
-router.post('/reset', async (req, res) => {
+// ROTA: POST /api/auth/reset
+router.post('/', async (req, res) => {
   const { token, password } = req.body;
 
   try {
     const user = await User.findOne({
       resetToken: token,
-      resetTokenExpire: { $gt: new Date() }
+      resetTokenExpire: { $gt: new Date() } // Token ainda válido
     });
 
     if (!user) {
@@ -18,6 +19,7 @@ router.post('/reset', async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
     user.password = hashedPassword;
     user.resetToken = undefined;
     user.resetTokenExpire = undefined;
@@ -25,7 +27,7 @@ router.post('/reset', async (req, res) => {
 
     res.json({ message: 'Senha redefinida com sucesso.' });
   } catch (err) {
-    console.error('Erro ao redefinir senha:', err);
+    console.error('[RESET] Erro ao redefinir senha:', err);
     res.status(500).json({ message: 'Erro interno.' });
   }
 });
