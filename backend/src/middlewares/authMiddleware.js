@@ -4,6 +4,8 @@ import User from '../models/User.js';
 const authMiddleware = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
+  console.log('[DEBUG] Header recebido:', authHeader); // 👈 Adicione isso
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'Token não fornecido.' });
   }

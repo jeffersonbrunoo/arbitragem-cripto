@@ -15,6 +15,11 @@ import {
   futureData,
   futureReverseData
 } from '../services/mexc/futureClient.js';
+import {
+  fetchGateioSpotPrices,
+  gateioAskData,
+  gateioBidData
+} from '../services/gateio/spotGateioClient.js';
 
 const logInfo = Debug('monitor:info');
 const logWarn = Debug('monitor:warn');
@@ -52,12 +57,14 @@ export function setupSocketMonitor(io) {
   loadTrackedPairs()
     .then(async () => {
       await fetchSpotPrices();
+      await fetchGateioSpotPrices();
       startFutureWS(trackedPairs);
       const batches = chunkArray(trackedPairs, 30);
       batches.forEach(startSpotWS);
       logInfo(`🟢 Spot WS: ${batches.length} conexões iniciadas`);
 
       setInterval(fetchSpotPrices, 10000);
+      setInterval(fetchGateioSpotPrices, 10000);
 
       setInterval(() => {
         trackedPairs.forEach(sym => {
@@ -65,6 +72,29 @@ export function setupSocketMonitor(io) {
           const f = Number(futureData[sym] ?? NaN);
           const sb = Number(spotReverseData[sym] ?? NaN);
           const fa = Number(futureReverseData[sym] ?? NaN);
+
+          const gateAsk = Number(gateioAskData[sym] ?? NaN);
+          const gateBid = Number(gateioBidData[sym] ?? NaN);
+
+          if (!isNaN(gateAsk) && !isNaN(s)) {
+            const lucroGateEntrada = (((s - gateAsk) / gateAsk) * 100).toFixed(2);
+            io.emit('arbitragemGateEntrada', {
+              symbol: sym,
+              precoBase: gateAsk.toString(),
+              precoDestino: s.toString(),
+              lucro: lucroGateEntrada
+            });
+          }
+
+          if (!isNaN(gateBid) && !isNaN(sb)) {
+            const lucroGateSaida = (((gateBid - sb) / sb) * 100).toFixed(2);
+            io.emit('arbitragemGateSaida', {
+              symbol: sym,
+              precoBase: sb.toString(),
+              precoDestino: gateBid.toString(),
+              lucro: lucroGateSaida
+            });
+          }
 
           if (isNaN(s) || isNaN(f)) return;
           const lucro = (((f - s) / s) * 100).toFixed(2);

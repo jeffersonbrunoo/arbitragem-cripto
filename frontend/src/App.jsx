@@ -7,13 +7,13 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/global.css';
 
-import LoginPage from './components/LoginPage';
-import RegisterPage from './components/RegisterPage';
-import ForgotPage from './components/ForgotPage';
-import ResetPasswordPage from './components/ResetPasswordPage';
-import DashboardPage from './components/DashboardPage';
-import MePage from './components/MePage';
-import ChangePasswordPage from './components/ChangePasswordPage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import ForgotPage from './pages/ForgotPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
+import DashboardPage from './pages/DashboardPage';
+import MePage from './pages/MePage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
 import PrivateRoute from './components/PrivateRoute';
 
 function App() {

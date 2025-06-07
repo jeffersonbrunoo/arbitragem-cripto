@@ -1,3 +1,4 @@
+// src/routes/me.js
 import express from 'express';
 import authMiddleware from '../middlewares/authMiddleware.js';
 import bcrypt from 'bcryptjs';
@@ -38,17 +39,31 @@ router.post('/change-password', authMiddleware, async (req, res) => {
 // Favoritar/desfavoritar
 router.post('/favoritos', authMiddleware, async (req, res) => {
   const { symbol } = req.body;
-  const user = await User.findById(req.user._id);
-  if (!user) return res.status(404).json({ message: 'Usuário não encontrado' });
 
-  if (!user.favoritos.includes(symbol)) {
-    user.favoritos.push(symbol);
-  } else {
-    user.favoritos = user.favoritos.filter((s) => s !== symbol);
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ message: 'Usuário não encontrado' });
+
+    let favoritos = user.favoritos || [];
+
+    if (favoritos.includes(symbol)) {
+      favoritos = favoritos.filter((s) => s !== symbol);
+    } else {
+      favoritos.push(symbol);
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      { favoritos },
+      { new: true } // retorna documento atualizado
+    );
+
+    res.json({ favoritos: updatedUser.favoritos });
+  } catch (err) {
+    console.error('Erro ao atualizar favoritos:', err.message);
+    res.status(500).json({ message: 'Erro interno ao atualizar favoritos' });
   }
-  await user.save();
-
-  res.json({ favoritos: user.favoritos });
 });
 
+// ✅ Exportação obrigatória para funcionar com `import meRoutes from ...`
 export default router;
