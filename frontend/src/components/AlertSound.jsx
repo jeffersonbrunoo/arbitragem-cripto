@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import socket from '../services/socket';
 
 const METAS = {
-  'BUBB': { min: 0, max: 10 },
+  'KBBB': { min: 0.5, max: 10 },
 };
 
 export default function Alert() {
